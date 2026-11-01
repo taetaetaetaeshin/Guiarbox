@@ -2,3 +2,5 @@
 .vscode
 platformio.ini
 .DS_Store
+Images/Home/Thumbs.db
+Images/UI/Thumbs.db
