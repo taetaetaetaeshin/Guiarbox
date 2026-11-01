@@ -74,20 +74,22 @@ float AudioEffectFreeverbFP::flushDenormal(float value) {
 }
 
 float AudioEffectFreeverbFP::readPredelay() const {
-    if (predelaySamples <= 0.0f) {
+    if (predelaySamples == 0 || predelaySamples >= (uint32_t)PREDELAY_BUFFER_SIZE) {
         return 0.0f;
     }
 
-    const float readPos =
-        (float)predelayWriteIndex - predelaySamples + (float)PREDELAY_BUFFER_SIZE;
-    const int readIndex =
-        (((int)readPos % PREDELAY_BUFFER_SIZE) + PREDELAY_BUFFER_SIZE) % PREDELAY_BUFFER_SIZE;
+    const uint32_t readIndex =
+        (predelayWriteIndex + (uint32_t)PREDELAY_BUFFER_SIZE - predelaySamples) %
+        (uint32_t)PREDELAY_BUFFER_SIZE;
     return predelayBuffer[readIndex];
 }
 
 void AudioEffectFreeverbFP::writePredelay(float sample) {
-    predelayBuffer[predelayWriteIndex % PREDELAY_BUFFER_SIZE] = sample;
+    predelayBuffer[predelayWriteIndex] = sample;
     predelayWriteIndex++;
+    if (predelayWriteIndex >= (uint32_t)PREDELAY_BUFFER_SIZE) {
+        predelayWriteIndex = 0;
+    }
 }
 
 AudioEffectFreeverbFP::AudioEffectFreeverbFP()
@@ -144,10 +146,16 @@ void AudioEffectFreeverbFP::setTone(float tone01) {
 
 void AudioEffectFreeverbFP::setPredelayMs(float ms) {
     ms = constrain(ms, 0.0f, 100.0f);
-    predelaySamples = (ms * 0.001f) * SAMPLE_RATE;
-    if (predelaySamples >= (float)(PREDELAY_BUFFER_SIZE - 1)) {
-        predelaySamples = (float)(PREDELAY_BUFFER_SIZE - 2);
+    float samples = (ms * 0.001f) * SAMPLE_RATE;
+    if (samples >= (float)(PREDELAY_BUFFER_SIZE - 1)) {
+        samples = (float)(PREDELAY_BUFFER_SIZE - 2);
     }
+    if (samples <= 0.0f) {
+        predelaySamples = 0;
+        return;
+    }
+    const uint32_t whole = (uint32_t)samples;
+    predelaySamples = (samples > (float)whole) ? whole + 1 : whole;
 }
 
 void AudioEffectFreeverbFP::setDryLevel(float level01) {
@@ -231,7 +239,7 @@ void AudioEffectFreeverbFP::update(void) {
 
         writePredelay(input);
         const float reverbInput =
-            (predelaySamples > 0.0f) ? readPredelay() : input;
+            (predelaySamples > 0) ? readPredelay() : input;
 
         float wet = 0.0f;
         wet += comb1.process(reverbInput);

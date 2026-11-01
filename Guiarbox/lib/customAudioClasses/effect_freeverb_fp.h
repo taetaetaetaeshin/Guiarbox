@@ -77,7 +77,7 @@ private:
     Allpass allpass4;
 
     uint32_t predelayWriteIndex = 0;
-    float predelaySamples = 0.0f;
+    uint32_t predelaySamples = 0;
     float dryGain = 1.0f;
     float wetGain = 0.0f;
 
